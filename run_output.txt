@@ -1,0 +1,47 @@
+🧶 Weaving data (Blue/Green)...
+Found 1 .msh files.
+--- Processing revenue (43a2) ---
+Step A: Ingest -> raw_revenue_43a2
+[0m00:42:03  Running with dbt=1.10.15
+[0m00:42:04  Registered adapter: duckdb=1.10.0
+[0m00:42:04  Unable to do partial parsing because saved manifest not found. Starting full parse.
+[0m00:42:05  Found 2 models, 468 macros
+[0m00:42:05  
+[0m00:42:05  Concurrency: 1 threads (target='dev')
+[0m00:42:05  
+[0m00:42:06  1 of 1 START python table model main.generic_loader ............................ [RUN]
+DEBUG: generic_loader config: {'source': {'module': 'test_source', 'name': 'dummy_source', 'args': {}, 'resource': 'dummy_source'}, 'destination': 'duckdb', 'dataset_name': 'msh_raw', 'table_name': 'raw_revenue_43a2', 'write_disposition': 'replace', 'columns': ['id', 'amount']}
+Pipeline msh_msh_raw_raw_revenue_43a2 load step completed in 0.04 seconds
+1 load package(s) were loaded to destination duckdb and into dataset msh_raw
+The duckdb destination used duckdb:////home/jay/msh/msh-cli/msh.duckdb location to store data
+Load package 1764376926.4896224 is LOADED and contains no failed jobs
+[0m00:42:06  1 of 1 OK created python table model main.generic_loader ....................... [[32mOK[0m in 0.63s]
+[0m00:42:06  
+[0m00:42:06  Finished running 1 table model in 0 hours 0 minutes and 0.76 seconds (0.76s).
+[0m00:42:06  
+[0m00:42:06  [32mCompleted successfully[0m
+[0m00:42:06  
+[0m00:42:06  Done. PASS=1 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=1
+Step B: Transform -> model_revenue_43a2
+[0m00:42:09  Running with dbt=1.10.15
+[0m00:42:10  Registered adapter: duckdb=1.10.0
+[0m00:42:10  Found 2 models, 468 macros
+[0m00:42:10  
+[0m00:42:10  Concurrency: 1 threads (target='dev')
+[0m00:42:10  
+[0m00:42:10  1 of 1 START sql table model main.model_revenue_43a2 ........................... [RUN]
+[0m00:42:10  1 of 1 OK created sql table model main.model_revenue_43a2 ...................... [[32mOK[0m in 0.10s]
+[0m00:42:10  
+[0m00:42:10  Finished running 1 table model in 0 hours 0 minutes and 0.20 seconds (0.20s).
+[0m00:42:11  
+[0m00:42:11  [32mCompleted successfully[0m
+[0m00:42:11  
+[0m00:42:11  Done. PASS=1 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=1
+Step C: Test -> model_revenue_43a2
+[0m00:42:13  Running with dbt=1.10.15
+[0m00:42:14  Registered adapter: duckdb=1.10.0
+[0m00:42:14  Found 2 models, 468 macros
+[0m00:42:14  Nothing to do. Try checking your model configs and model specification args
+Step D: Swap -> revenue
+Swap failed for revenue: Catalog Error: Existing object revenue is of type View, trying to drop type Table
+Done!

@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "msh-cli"
+version = "0.1.0"
+description = "The Command Line Interface for the msh atomic data platform."
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "Business Source License 1.1 (BSL 1.1)"}
+authors = [
+    { name = "Januka Peiris", email = "jaypeiris91@gmail.com" },
+]
+dependencies = [
+    "click",        # For the CLI interface
+    "pyyaml",       # To parse .msh files
+    "msh-engine>=0.1.0",   # The runtime engine
+    "rich"
+]
+
+[project.optional-dependencies]
+polyglot = ["polars", "pandas"]
+
+[project.scripts]
+# This registers the command 'msh' in your terminal
+msh = "msh.main:cli" 
+
+[tool.setuptools.packages.find]
+where = ["src"]

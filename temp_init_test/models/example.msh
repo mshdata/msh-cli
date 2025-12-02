@@ -1,0 +1,6 @@
+name: example_asset
+ingest:
+  source: dlt.sources.pokemon
+  resource: pokemon
+transform: |
+  SELECT * FROM {{ source }}

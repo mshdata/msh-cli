@@ -1,0 +1,2 @@
+include src/msh/ui_static/*
+recursive-include src/msh/ui_static *

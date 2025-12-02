@@ -1,0 +1,2 @@
+[console_scripts]
+msh = msh.main:cli

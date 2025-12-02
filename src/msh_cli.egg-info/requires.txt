@@ -1,0 +1,8 @@
+click
+pyyaml
+msh-engine>=0.1.0
+rich
+
+[polyglot]
+polars
+pandas

@@ -1,0 +1,6 @@
+name: revenue
+ingest:
+  source: test_source.dummy_source
+  resource: dummy_source
+transform: |
+  SELECT id, amount, invalid_column FROM {{ source }} WHERE amount >= 0
