@@ -3,6 +3,8 @@ import json
 import datetime
 from typing import List, Dict, Any, Optional
 from rich.console import Console
+from msh.logger import logger as console_logger
+from msh.ai.manifest import ManifestGenerator
 
 class CatalogGenerator:
     def __init__(self, cwd: str, build_dir: str, console: Optional[Console] = None) -> None:
@@ -165,6 +167,14 @@ class CatalogGenerator:
             catalog_path = os.path.join(self.cwd, ".msh", "msh_catalog.json")
             with open(catalog_path, "w") as f:
                 json.dump(catalog, f, indent=2)
+            
+            # Also generate metadata cache for AI operations
+            try:
+                manifest_gen = ManifestGenerator(project_root=self.cwd)
+                manifest_gen.generate_all()
+            except Exception as e:
+                # Non-critical: catalog generation succeeded, cache generation failed
+                console_logger.warning(f"Failed to generate metadata cache: {e}")
                 
         except Exception as e:
             self.console.print(f"[bold red]Error generating catalog: {e}[/bold red]")

@@ -1,5 +1,4 @@
 from .init import init, generate
-from .init import init, generate
 from .run import run, rollback, freshness, preview
 from .doctor import doctor
 from .ui import ui, lineage

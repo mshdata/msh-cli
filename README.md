@@ -124,6 +124,24 @@ msh publish orders --to salesforce
 ### ⚡ Bulk Operations
 **Process multiple assets at once.** Run, rollback, and query multiple assets with a single command. Perfect for automation and CI/CD pipelines.
 
+### 🔍 Dependency Selection
+**Run upstream or downstream dependencies.** Use `+asset_name` to run all upstream dependencies, or `asset_name+` to run the asset and all downstream dependents.
+
+### 🤖 AI-Powered Features
+**Get AI assistance for your data assets.** Use AI to explain, review, generate, and fix your `.msh` files. Includes glossary management and context-aware suggestions.
+
+### 🔎 Auto-Discovery
+**Generate `.msh` files automatically.** Probe REST APIs or SQL databases and automatically generate configuration files with inferred schemas and types.
+
+### 📊 Data Sampling & Preview
+**Preview your data before running.** Sample data from assets to verify transformations and test queries without running the full pipeline.
+
+### 📚 Glossary Management
+**Define and link business terms.** Create a shared glossary of business terms, metrics, and dimensions. Link them to assets and columns for better documentation and AI context.
+
+### 🔒 Schema Contracts
+**Control schema evolution.** Define how schemas should evolve (`freeze` or `evolve`) to prevent unexpected changes or allow controlled growth.
+
 ## Usage Examples
 
 ### Git-Aware Development
@@ -152,6 +170,102 @@ msh rollback --all
 
 # Get JSON output for automation
 msh status --format json
+```
+
+### Dependency Selection
+```bash
+# Run asset and all upstream dependencies
+msh run +fct_orders
+
+# Run asset and all downstream dependents
+msh run fct_orders+
+
+# Run specific asset only
+msh run fct_orders
+```
+
+### Command Aliases
+```bash
+# All asset commands can be accessed via 'msh asset'
+msh asset run orders
+msh asset rollback orders
+msh asset status
+msh asset sample orders --size 10
+msh asset versions orders
+```
+
+### AI Commands
+```bash
+# Explain what an asset does
+msh ai explain models/orders.msh
+
+# Review asset for risks and issues
+msh ai review models/orders.msh
+
+# Generate a new asset from description
+msh ai new --name customer_metrics
+
+# Fix a broken asset
+msh ai fix models/orders.msh
+
+# Generate tests for an asset
+msh ai tests models/orders.msh
+
+# Generate context pack for AI
+msh ai context --asset orders --json
+```
+
+### Auto-Discovery
+```bash
+# Discover REST API and generate .msh file
+msh discover https://api.github.com/repos/dlt-hub/dlt/issues --name github_issues
+
+# Discover SQL database and generate .msh file
+msh discover postgresql://user:pass@host:5432/db --name customers --table public.users
+
+# Write to file automatically
+msh discover https://api.example.com/data --name api_data --write
+```
+
+### Data Sampling
+```bash
+# Sample 10 rows from an asset
+msh sample orders --size 10
+
+# Sample with specific environment
+msh sample orders --env prod --size 100
+```
+
+### Glossary Management
+```bash
+# Add a glossary term
+msh glossary add-term "Customer Lifetime Value" --description "Total revenue from a customer"
+
+# Link term to asset and column
+msh glossary link-term "Customer Lifetime Value" --asset customers --column customer_id
+
+# List all glossary terms
+msh glossary list --json
+
+# Export glossary for AI context
+msh glossary export --json
+```
+
+### Schema Contracts
+```yaml
+# models/orders.msh
+name: orders
+
+ingest:
+  type: sql_database
+  source: prod_db
+  table: orders
+
+contract:
+  evolution: freeze  # Prevent new columns from being added
+
+transform: |
+  SELECT * FROM {{ source }}
 ```
 
 ### Layered Projects (dbt-style)
@@ -245,6 +359,94 @@ msh run
 ### 4. View the Dashboard
 ```bash
 msh ui
+```
+
+## Command Reference
+
+### Core Commands
+- `msh init` - Initialize a new msh project
+- `msh run [asset]` - Run assets (use `--all` for all assets)
+- `msh rollback [asset]` - Rollback to previous version
+- `msh status` - Show deployment status
+- `msh plan` - Show execution plan without running
+- `msh doctor` - Diagnose project configuration issues
+
+### Asset Commands (Aliases)
+- `msh asset run [asset]` - Run assets
+- `msh asset rollback [asset]` - Rollback assets
+- `msh asset status` - Show status
+- `msh asset sample [asset]` - Sample data from asset
+- `msh asset versions [asset]` - Show version history
+- `msh asset preview [asset]` - Preview transformation SQL
+
+### AI Commands
+- `msh ai explain <asset>` - Explain what an asset does
+- `msh ai review <asset>` - Review asset for risks
+- `msh ai new` - Generate new asset from description
+- `msh ai fix <asset>` - Fix broken asset
+- `msh ai tests <asset>` - Generate tests for asset
+- `msh ai context` - Generate AI context pack
+
+### Discovery & Development
+- `msh discover <source>` - Auto-discover and generate .msh file
+- `msh sample <asset>` - Sample data from asset
+- `msh validate` - Validate .msh file syntax
+- `msh fmt` - Format .msh files
+
+### Glossary Commands
+- `msh glossary add-term <name>` - Add glossary term
+- `msh glossary link-term <term> --asset <asset>` - Link term to asset
+- `msh glossary list` - List all terms
+- `msh glossary export` - Export glossary as JSON
+
+### Utility Commands
+- `msh ui` - Launch web dashboard
+- `msh lineage` - Show asset lineage graph
+- `msh manifest` - Generate project manifest
+- `msh config` - Configure msh settings
+
+## Supported Destinations
+
+msh supports all major data warehouses and databases:
+
+- **Snowflake** - Full support with optimized connection handling, schema sanitization, and error handling
+- **PostgreSQL** - Native support with connection pooling
+- **DuckDB** - Default local development database
+- **BigQuery** - Google Cloud BigQuery support
+- **Redshift** - Amazon Redshift support
+- **MySQL** - MySQL database support
+- **SQLite** - SQLite support for testing
+
+## Configuration
+
+### Environment Variables
+
+For Snowflake:
+```bash
+# dlt / msh (Ingestion & Orchestration)
+export DESTINATION__SNOWFLAKE__CREDENTIALS__DATABASE="ANALYTICS"
+export DESTINATION__SNOWFLAKE__CREDENTIALS__PASSWORD="secure_password"
+export DESTINATION__SNOWFLAKE__CREDENTIALS__USERNAME="MSH_USER"
+export DESTINATION__SNOWFLAKE__CREDENTIALS__HOST="xyz123.snowflakecomputing.com"
+export DESTINATION__SNOWFLAKE__CREDENTIALS__WAREHOUSE="COMPUTE_WH"
+export DESTINATION__SNOWFLAKE__CREDENTIALS__ROLE="TRANSFORMER"
+
+# dbt (Transformation)
+export SNOWFLAKE_ACCOUNT="xyz123"
+export SNOWFLAKE_USER="MSH_USER"
+export SNOWFLAKE_PASSWORD="secure_password"
+export SNOWFLAKE_ROLE="TRANSFORMER"
+export SNOWFLAKE_DATABASE="ANALYTICS"
+export SNOWFLAKE_WAREHOUSE="COMPUTE_WH"
+```
+
+For PostgreSQL:
+```bash
+export DESTINATION__POSTGRES__CREDENTIALS="postgresql://user:pass@host:5432/db"
+export POSTGRES_HOST="localhost"
+export POSTGRES_USER="postgres"
+export POSTGRES_PASSWORD="password"
+export POSTGRES_DB="analytics"
 ```
 
 ## License

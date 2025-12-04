@@ -86,9 +86,15 @@ class Orchestrator:
 
         # 1.5 Filter Execution Plan based on Asset Selector
         if self.asset_selector:
-            execution_plan = self.dependency_resolver.resolve(execution_plan, self.asset_selector)
+            # Validate selector is not empty
+            selector = self.asset_selector.strip() if isinstance(self.asset_selector, str) else str(self.asset_selector)
+            if not selector:
+                console.print(f"[bold red][ERROR][/bold red] Orchestrator: Empty asset selector provided.")
+                return
+            
+            execution_plan = self.dependency_resolver.resolve(execution_plan, selector)
             if not execution_plan:
-                console.print(f"[bold red]No assets found matching selector: {self.asset_selector}[/bold red]")
+                console.print(f"[bold red]No assets found matching selector: {selector}[/bold red]")
                 return
             console.print(f"[bold cyan]Selected {len(execution_plan)} assets to run.[/bold cyan]")
 
@@ -136,14 +142,17 @@ class Orchestrator:
         
         # Gitignore
         gitignore_path = os.path.join(self.cwd, ".gitignore")
-        if os.path.exists(gitignore_path):
-            with open(gitignore_path, "r") as f:
-                if ".msh/" not in f.read():
-                    with open(gitignore_path, "a") as f2:
-                        f2.write("\\n.msh/\\n")
-        else:
-            with open(gitignore_path, "w") as f:
-                f.write(".msh/\\n")
+        try:
+            if os.path.exists(gitignore_path):
+                with open(gitignore_path, "r") as f:
+                    if ".msh/" not in f.read():
+                        with open(gitignore_path, "a") as f2:
+                            f2.write("\n.msh/\n")
+            else:
+                with open(gitignore_path, "w") as f:
+                    f.write(".msh/\n")
+        except (IOError, PermissionError) as e:
+            console.print(f"[yellow][WARNING] Could not update .gitignore: {e}[/yellow]")
 
         # Scan
         models_path = os.path.join(self.cwd, "models")

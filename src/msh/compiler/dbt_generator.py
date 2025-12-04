@@ -96,12 +96,43 @@ class DbtArtifactGenerator:
                 "schema": target_schema
             }
         elif self.destination == "snowflake":
-             outputs[DEFAULT_TARGET_NAME] = {
+            # Snowflake-specific profile generation with validation
+            # Note: Other destinations (Postgres, DuckDB, BigQuery, etc.) continue to work normally
+            # Validate required Snowflake environment variables
+            required_vars = [
+                "SNOWFLAKE_ACCOUNT",
+                "SNOWFLAKE_USER",
+                "SNOWFLAKE_PASSWORD",
+                "SNOWFLAKE_DATABASE",
+                "SNOWFLAKE_WAREHOUSE",
+            ]
+            missing_vars = [var for var in required_vars if not os.environ.get(var)]
+            
+            if missing_vars:
+                raise ValueError(
+                    f"Missing required Snowflake environment variables: {', '.join(missing_vars)}\n"
+                    f"Please set these variables before running msh with Snowflake destination.\n"
+                    f"Example:\n"
+                    f"  export SNOWFLAKE_ACCOUNT=xyz123\n"
+                    f"  export SNOWFLAKE_USER=msh_user\n"
+                    f"  export SNOWFLAKE_PASSWORD=secure_password\n"
+                    f"  export SNOWFLAKE_DATABASE=ANALYTICS\n"
+                    f"  export SNOWFLAKE_WAREHOUSE=COMPUTE_WH"
+                )
+            
+            # Validate schema name for Snowflake
+            if len(target_schema) > 255:
+                console.warning(
+                    f"Schema name '{target_schema}' exceeds Snowflake max length (255). "
+                    f"Consider using a shorter name."
+                )
+            
+            outputs[DEFAULT_TARGET_NAME] = {
                 "type": "snowflake",
                 "account": "{{ env_var('SNOWFLAKE_ACCOUNT') }}",
                 "user": "{{ env_var('SNOWFLAKE_USER') }}",
                 "password": "{{ env_var('SNOWFLAKE_PASSWORD') }}",
-                "role": "{{ env_var('SNOWFLAKE_ROLE') }}",
+                "role": "{{ env_var('SNOWFLAKE_ROLE', '') }}",
                 "database": "{{ env_var('SNOWFLAKE_DATABASE') }}",
                 "warehouse": "{{ env_var('SNOWFLAKE_WAREHOUSE') }}",
                 "schema": target_schema

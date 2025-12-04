@@ -13,6 +13,11 @@ from msh.commands.publish import publish
 from msh.commands.discover import discover
 from msh.commands.sample import sample
 from msh.commands.asset import asset
+from msh.commands.inspect import inspect
+from msh.commands.manifest import manifest
+from msh.commands.ai import ai
+from msh.commands.glossary import glossary
+from msh.commands.config import config
 
 @click.group()
 def cli() -> click.Group:
@@ -25,6 +30,11 @@ cli.add_command(generate)
 cli.add_command(discover)
 cli.add_command(sample)
 cli.add_command(asset)  # Asset command group (aliases)
+cli.add_command(inspect)
+cli.add_command(manifest)
+cli.add_command(ai)
+cli.add_command(glossary)
+cli.add_command(config)
 cli.add_command(run)
 cli.add_command(preview)
 cli.add_command(rollback)

@@ -73,10 +73,11 @@ class IngestManager:
                 active_hash = get_active_hash(conn, name, self.target_schema)
                 asset["active_hash"] = active_hash
                 
-                if active_hash != content_hash and asset.get("ingest"):
+                # Only ingest if content has changed (incremental logic)
+                # Skip ingestion if hash matches to avoid unnecessary re-ingestion
+                # Handle first-time deployment (active_hash is None)
+                if (active_hash is None or active_hash != content_hash) and asset.get("ingest"):
                     assets_to_ingest.append(asset)
-                elif active_hash == content_hash and asset.get("ingest"):
-                     assets_to_ingest.append(asset)
                 
                 if self.dry_run and asset.get("ingest"):
                     if asset not in assets_to_ingest:
@@ -192,15 +193,32 @@ class IngestManager:
                 console.print(f"[bold red][ERROR][/bold red] Ingest: Failed to load '{name}'")
                 console.print(f"[dim]Return code: {e.returncode}[/dim]")
                 if e.stdout:
-                    console.print(f"[dim]dbt stdout:[/dim]\n{e.stdout.decode()}")
+                    console.print(f"[dim]dbt stdout:[/dim]\n{e.stdout.decode('utf-8', errors='replace')}")
                 if e.stderr:
-                    console.print(f"[dim]dbt stderr:[/dim]\n{e.stderr.decode()}")
+                    console.print(f"[dim]dbt stderr:[/dim]\n{e.stderr.decode('utf-8', errors='replace')}")
                 if not e.stdout and not e.stderr:
                     console.print(f"[dim]Error details: {str(e)}[/dim]")
             else:
                 # User-friendly error message in normal mode
-                stderr_text = e.stderr.decode() if e.stderr else ""
-                if "Compilation Error" in stderr_text or e.returncode == 2:
+                stderr_text = e.stderr.decode('utf-8', errors='replace') if e.stderr else ""
+                
+                # Check for Snowflake-specific errors (only applies to Snowflake destination)
+                # Other destinations get generic error handling
+                if self.dest.lower() == "snowflake":
+                    stderr_lower = stderr_text.lower()
+                    if "warehouse" in stderr_lower and "suspended" in stderr_lower:
+                        console.print(f"[bold red][ERROR][/bold red] Ingest: Snowflake warehouse is suspended. Resume it in the Snowflake UI.")
+                    elif "timeout" in stderr_lower or "connection" in stderr_lower:
+                        console.print(f"[bold red][ERROR][/bold red] Ingest: Snowflake connection timeout. Check network connectivity and warehouse status.")
+                    elif "quota" in stderr_lower or "limit" in stderr_lower:
+                        console.print(f"[bold red][ERROR][/bold red] Ingest: Snowflake quota exceeded. Check your account limits.")
+                    elif "authentication" in stderr_lower or "login" in stderr_lower:
+                        console.print(f"[bold red][ERROR][/bold red] Ingest: Snowflake authentication failed. Check your credentials.")
+                    elif "Compilation Error" in stderr_text or e.returncode == 2:
+                        console.print(f"[bold red][ERROR][/bold red] Ingest: Compilation Error for '{name}'. Check your SQL references.")
+                    else:
+                        console.print(f"[bold red][ERROR][/bold red] Ingest: Failed to load '{name}'. Run with --debug for details.")
+                elif "Compilation Error" in stderr_text or e.returncode == 2:
                     console.print(f"[bold red][ERROR][/bold red] Ingest: Compilation Error for '{name}'. Check your SQL references.")
                 else:
                     console.print(f"[bold red][ERROR][/bold red] Ingest: Failed to load '{name}'. Run with --debug for details.")

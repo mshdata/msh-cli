@@ -83,7 +83,15 @@ class TransformManager:
             
             assets_map[name] = asset
             
-            if active_hash == content_hash:
+            # Handle first-time deployment (active_hash is None)
+            if active_hash is None:
+                # First-time deployment: use Blue/Green strategy
+                if self.dry_run:
+                    console.print(f"[bold yellow][Dry Run] {name}: First-time deployment (Blue/Green).[/bold yellow]")
+                else:
+                    console.print(f"[bold green]First-time deployment for {name}. Using Blue/Green strategy.[/bold green]")
+                models_to_run.append(name)
+            elif active_hash == content_hash:
                 if self.dry_run:
                     console.print(f"[bold yellow][Dry Run] {name}: No changes detected (Incremental).[/bold yellow]")
                 else:
@@ -111,8 +119,12 @@ class TransformManager:
         try:
             self._run_dbt(select_str)
             console.print(f"[bold green][OK] Batch transformation complete.[/bold green]")
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError as e:
             console.print(f"[bold red][ERROR][/bold red] Transform: Batch transformation failed. Aborting phase.")
+            if self.debug:
+                console.print(f"[dim]Return code: {e.returncode}[/dim]")
+                if e.stderr:
+                    console.print(f"[dim]Error details:[/dim]\n{e.stderr.decode('utf-8', errors='replace')}")
             return
 
         # 3. Post-Run: Tests, Swap, Janitor
@@ -155,7 +167,8 @@ class TransformManager:
                             except SQLSecurityError as e:
                                 console.print(f"[yellow]Warning: Could not safely drop view {model_name}: {e}[/yellow]")
                             
-                            if active_hash != content_hash:
+                            # Only drop raw table if this was a Blue/Green deployment (hash changed)
+                            if active_hash is not None and active_hash != content_hash:
                                 try:
                                     execute_ddl_safe(
                                         conn,
@@ -169,8 +182,8 @@ class TransformManager:
                         console.print(f"[yellow]Warning: Cleanup failed: {e}[/yellow]")
                     continue
 
-            # Swap
-            if active_hash != content_hash:
+            # Swap (only needed if hash changed or first-time deployment)
+            if active_hash is None or active_hash != content_hash:
                 if self.deploy:
                     self._swap_asset(name, model_name, active_hash)
                 else:
@@ -207,15 +220,33 @@ class TransformManager:
                 if self.debug:
                     console.print(f"[dim]Return code: {e.returncode}[/dim]")
                     if e.stdout:
-                        console.print(f"[dim]dbt stdout:[/dim]\n{e.stdout.decode()}")
+                        console.print(f"[dim]dbt stdout:[/dim]\n{e.stdout.decode('utf-8', errors='replace')}")
                     if e.stderr:
-                        console.print(f"[dim]dbt stderr:[/dim]\n{e.stderr.decode()}")
+                        console.print(f"[dim]dbt stderr:[/dim]\n{e.stderr.decode('utf-8', errors='replace')}")
                     if not e.stdout and not e.stderr:
                         console.print(f"[dim]Error details: {str(e)}[/dim]")
-                elif not self.debug:
+                else:
                     # Extract meaningful error from stderr if possible
-                    stderr_text = e.stderr.decode() if e.stderr else ""
-                    if "Compilation Error" in stderr_text or e.returncode == 2:
+                    stderr_text = e.stderr.decode('utf-8', errors='replace') if e.stderr else ""
+                    stderr_lower = stderr_text.lower()
+                    
+                    # Check for Snowflake-specific errors (only applies to Snowflake destination)
+                    # Other destinations get generic error handling
+                    is_snowflake = "snowflake" in str(self.engine.url).lower()
+                    if is_snowflake:
+                        if "warehouse" in stderr_lower and "suspended" in stderr_lower:
+                            console.print("[bold red][ERROR][/bold red] Transform: Snowflake warehouse is suspended. Resume it in the Snowflake UI.")
+                        elif "timeout" in stderr_lower or "connection" in stderr_lower:
+                            console.print("[bold red][ERROR][/bold red] Transform: Snowflake connection timeout. Check network connectivity and warehouse status.")
+                        elif "quota" in stderr_lower or "limit" in stderr_lower:
+                            console.print("[bold red][ERROR][/bold red] Transform: Snowflake quota exceeded. Check your account limits.")
+                        elif "authentication" in stderr_lower or "login" in stderr_lower:
+                            console.print("[bold red][ERROR][/bold red] Transform: Snowflake authentication failed. Check your credentials.")
+                        elif "Compilation Error" in stderr_text or e.returncode == 2:
+                            console.print("[bold red][ERROR][/bold red] Transform: Compilation Error. Check your SQL references.")
+                        else:
+                            console.print("[bold red][ERROR][/bold red] Transform: Transformation failed. Run with --debug for details.")
+                    elif "Compilation Error" in stderr_text or e.returncode == 2:
                         console.print("[bold red][ERROR][/bold red] Transform: Compilation Error. Check your SQL references.")
                     else:
                         console.print("[bold red][ERROR][/bold red] Transform: Transformation failed. Run with --debug for details.")
@@ -346,15 +377,33 @@ class TransformManager:
             if self.debug:
                 console.print(f"[dim]Return code: {e.returncode}[/dim]")
                 if e.stdout:
-                    console.print(f"[dim]dbt stdout:[/dim]\n{e.stdout.decode()}")
+                    console.print(f"[dim]dbt stdout:[/dim]\n{e.stdout.decode('utf-8', errors='replace')}")
                 if e.stderr:
-                    console.print(f"[dim]dbt stderr:[/dim]\n{e.stderr.decode()}")
+                    console.print(f"[dim]dbt stderr:[/dim]\n{e.stderr.decode('utf-8', errors='replace')}")
                 if not e.stdout and not e.stderr:
                     console.print(f"[dim]Error details: {str(e)}[/dim]")
             elif not self.debug:
                 # Extract meaningful error from stderr if possible
-                stderr_text = e.stderr.decode() if e.stderr else ""
-                if "Compilation Error" in stderr_text or e.returncode == 2:
+                stderr_text = e.stderr.decode('utf-8', errors='replace') if e.stderr else ""
+                stderr_lower = stderr_text.lower()
+                
+                # Check for Snowflake-specific errors (only applies to Snowflake destination)
+                # Other destinations get generic error handling
+                is_snowflake = "snowflake" in str(self.engine.url).lower()
+                if is_snowflake:
+                    if "warehouse" in stderr_lower and "suspended" in stderr_lower:
+                        console.print("[bold red][ERROR][/bold red] Transform: Snowflake warehouse is suspended. Resume it in the Snowflake UI.")
+                    elif "timeout" in stderr_lower or "connection" in stderr_lower:
+                        console.print("[bold red][ERROR][/bold red] Transform: Snowflake connection timeout. Check network connectivity and warehouse status.")
+                    elif "quota" in stderr_lower or "limit" in stderr_lower:
+                        console.print("[bold red][ERROR][/bold red] Transform: Snowflake quota exceeded. Check your account limits.")
+                    elif "authentication" in stderr_lower or "login" in stderr_lower:
+                        console.print("[bold red][ERROR][/bold red] Transform: Snowflake authentication failed. Check your credentials.")
+                    elif "Compilation Error" in stderr_text or e.returncode == 2:
+                        console.print("[bold red][ERROR][/bold red] Transform: Test Compilation Error. Check your SQL references.")
+                    else:
+                        console.print("[bold red][ERROR][/bold red] Transform: Data Quality Tests failed. Run with --debug for details.")
+                elif "Compilation Error" in stderr_text or e.returncode == 2:
                     console.print("[bold red][ERROR][/bold red] Transform: Test Compilation Error. Check your SQL references.")
                 else:
                     console.print("[bold red][ERROR][/bold red] Transform: Data Quality Tests failed. Run with --debug for details.")

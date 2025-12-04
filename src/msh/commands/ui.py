@@ -196,9 +196,9 @@ def lineage(debug: bool) -> None:
         if debug:
             console.print(f"[dim]Return code: {e.returncode}[/dim]")
             if e.stdout:
-                console.print(f"[dim]dbt stdout:[/dim]\n{e.stdout.decode()}")
+                console.print(f"[dim]dbt stdout:[/dim]\n{e.stdout.decode('utf-8', errors='replace')}")
             if e.stderr:
-                console.print(f"[dim]dbt stderr:[/dim]\n{e.stderr.decode()}")
+                console.print(f"[dim]dbt stderr:[/dim]\n{e.stderr.decode('utf-8', errors='replace')}")
             if not e.stdout and not e.stderr:
                 console.print(f"[dim]Error details: {str(e)}[/dim]")
         elif not debug:

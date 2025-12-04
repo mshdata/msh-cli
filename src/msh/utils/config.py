@@ -12,6 +12,57 @@ from typing import Optional, Dict, Any, Union, List
 from msh.constants import DEFAULT_DESTINATION, DEFAULT_RAW_DATASET, SCHEMA_MAIN, SCHEMA_PUBLIC
 from msh.logger import logger as console
 from msh.git_utils import get_sanitized_schema_suffix
+import re
+
+# Snowflake identifier limits
+SNOWFLAKE_MAX_IDENTIFIER_LENGTH = 255
+SNOWFLAKE_RECOMMENDED_IDENTIFIER_LENGTH = 63
+
+
+def sanitize_snowflake_identifier(identifier: str, max_length: int = SNOWFLAKE_RECOMMENDED_IDENTIFIER_LENGTH) -> str:
+    """
+    Sanitizes an identifier for Snowflake compatibility.
+    
+    Snowflake identifiers:
+    - Are case-sensitive but typically uppercase
+    - Can contain letters, numbers, and underscores
+    - Cannot start with a number
+    - Should be uppercase by convention
+    - Have a max length of 255 chars (recommended: 63)
+    
+    Args:
+        identifier: Original identifier string
+        max_length: Maximum length (default: 63)
+        
+    Returns:
+        Sanitized, uppercase identifier
+    """
+    if not identifier:
+        return identifier
+    
+    # Convert to uppercase (Snowflake convention)
+    identifier = identifier.upper()
+    
+    # Replace invalid characters with underscores
+    # Allow: letters, numbers, underscores
+    identifier = re.sub(r'[^A-Z0-9_]', '_', identifier)
+    
+    # Remove leading/trailing underscores
+    identifier = identifier.strip('_')
+    
+    # Ensure it doesn't start with a number
+    if identifier and identifier[0].isdigit():
+        identifier = f"_{identifier}"
+    
+    # Truncate to max length
+    if len(identifier) > max_length:
+        identifier = identifier[:max_length]
+    
+    # Ensure it's not empty
+    if not identifier:
+        identifier = "DEFAULT"
+    
+    return identifier
 
 
 def load_msh_config(cwd: Optional[str] = None) -> Dict[str, Any]:
@@ -84,15 +135,31 @@ def get_target_schema(
     # Apply git-aware suffix in dev environment
     if env == "dev":
         suffix = get_sanitized_schema_suffix()
+        # Sanitize suffix for Snowflake if needed
+        if destination == "snowflake":
+            suffix = sanitize_snowflake_identifier(suffix, max_length=20)
         # Ensure total length doesn't exceed DB limits (63 chars for most DBs)
         # Leave room for suffix: base + "_" + suffix (max 20) = base + 21
         max_base_length = 63 - 21  # 42 chars for base schema
         if len(base_schema) > max_base_length:
             base_schema = base_schema[:max_base_length]
-        return f"{base_schema}_{suffix}"
+        final_schema = f"{base_schema}_{suffix}"
+    else:
+        final_schema = base_schema
     
-    # Production: return base schema unchanged
-    return base_schema
+    # Sanitize for Snowflake (uppercase, validate length, etc.)
+    # Note: Only applies when destination is Snowflake - other destinations unchanged
+    if destination == "snowflake":
+        final_schema = sanitize_snowflake_identifier(final_schema)
+        # Validate length
+        if len(final_schema) > SNOWFLAKE_MAX_IDENTIFIER_LENGTH:
+            console.warning(
+                f"Schema name '{final_schema}' exceeds Snowflake max length ({SNOWFLAKE_MAX_IDENTIFIER_LENGTH}). "
+                f"Truncating to recommended length ({SNOWFLAKE_RECOMMENDED_IDENTIFIER_LENGTH})."
+            )
+            final_schema = final_schema[:SNOWFLAKE_RECOMMENDED_IDENTIFIER_LENGTH]
+    
+    return final_schema
 
 
 def get_raw_dataset(
