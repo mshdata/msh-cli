@@ -51,4 +51,7 @@ def doctor() -> None:
     except Exception:
         table.add_row("Write Access", "[red]FAIL[/red]", "Cannot write to current directory")
         
-    console.print(table)
+    # Use Rich console directly for Table objects
+    from rich.console import Console
+    rich_console = Console()
+    rich_console.print(table)
